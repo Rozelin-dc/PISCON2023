@@ -1,0 +1,8 @@
+github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
+github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/matsuu/kataribe v0.4.3 h1:ylMrN4wSpQFKz9VAUAdbgvDjSRp50TvS1gmYebwINgs=
+github.com/matsuu/kataribe v0.4.3/go.mod h1:tL1iiWMPk1rWwpYA2ljLJJ8hqRm455UQmIxMK9pmUSo=
+github.com/morikuni/failure v0.11.0 h1:fLQwvKbFhGYmHankExnKlsKGYbath50lBAujCd4lE7A=
+github.com/morikuni/failure v0.11.0/go.mod h1:+IjvKCz9B/D4BQrTzYLwERdWyMkGJdu+q5gri9dWecg=
+github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9 h1:lpEzuenPuO1XNTeikEmvqYFcU37GVLl8SRNblzyvGBE=
+github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9/go.mod h1:PLPIyL7ikehBD1OAjmKKiOEhbvWyHGaNDjquXMcYABo=

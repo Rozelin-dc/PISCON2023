@@ -1,0 +1,12 @@
+webapp
+bench
+bin
+cmd
+initial-data
+
+!/webapp/go/
+!/webapp/go/**
+!/webapp/README.md
+!/webapp/docs/
+!/webapp/docs/**
+
