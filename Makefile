@@ -23,9 +23,6 @@ errcheck:
 staticcheck:
 	staticcheck -checks="all,-ST1000" ./...
 
-clean:
-	rm -rf bin/*
-
 include ~/env.sh
 
 DB_HOST:=127.0.0.1
@@ -65,6 +62,7 @@ B:="hoge"
 
 .PHONY: clean
 clean:
+	rm -rf bin/*
 	cd $(BUILD_DIR); \
 	rm -rf $(BIN_NAME)
 
@@ -89,11 +87,11 @@ test:
 
 # 設定ファイルなどを取得してgit管理下に配置する
 .PHONY: get-conf
-get-conf: check-server-id dir get-db-conf get-envsh
+get-conf: check-server-id dir get-db-conf get-envsh get-nginx-conf get-service-file
 
 # リポジトリ内の設定ファイルをそれぞれ配置する
 .PHONY: deploy-conf
-deploy-conf: check-server-id deploy-db-conf deploy-envsh
+deploy-conf: check-server-id deploy-db-conf deploy-envsh deploy-nginx-conf deploy-service-file
 
 .PHONY: check-server-id
 check-server-id:
@@ -174,7 +172,7 @@ pull:
 	git pull
 
 .PHONY: bench
-bench: check-server-id pull befor deploy-conf dev
+bench: check-server-id pull before deploy-conf dev
 
 .PHONY: maji
 maji: before build restart
