@@ -172,7 +172,7 @@ pull:
 	git pull
 
 .PHONY: bench
-bench: check-server-id pull before deploy-conf build restart
+bench: check-server-id pull deploy-conf before build restart
 
 .PHONY: maji
 maji: before build restart
