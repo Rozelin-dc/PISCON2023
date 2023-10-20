@@ -30,8 +30,8 @@ include ~/env.sh
 
 DB_HOST:=127.0.0.1
 DB_PORT:=3306
-DB_USER:=isucon
-DB_PASS:=isucon
+DB_USER:=isucari
+DB_PASS:=isucari
 DB_NAME:=isucari
 
 GOPATH:=/home/isucon/go/bin
@@ -49,11 +49,11 @@ SLACKRAW:=slackcat --channel general
 PPROF:=go tool pprof -png -output pprof.png http://localhost:6060/debug/pprof/profile
 
 PROJECT_ROOT:=/home/isucon/isucari
-BUILD_DIR:=/home/isucon/isucari/go
+BUILD_DIR:=/home/isucon/isucari/webapp/go
 BIN_NAME:=isucari
 BIN_DIR:=/home/isucon/isucari
 
-SERVICE_NAME:=isucari.go.service
+SERVICE_NAME:=isucari.golang.service
 
 DB_PATH:=/etc/mysql
 NGINX_PATH:=/etc/nginx
@@ -62,8 +62,6 @@ SYSTEMD_PATH:=/etc/systemd/system
 CA:=-o /dev/null -s -w "%{http_code}\n"
 
 B:="hoge"
-
-all: build
 
 .PHONY: clean
 clean:
@@ -76,8 +74,8 @@ deps:
 
 .PHONY: build
 build:
-	ln -s docker-compose-$(SERVER_ID).yml docker-compose.yml
-	docker compose up --build
+	cd $(BUILD_DIR); \
+	go build -o $(BIN_NAME)
 
 .PHONY: restart
 restart:
@@ -176,7 +174,7 @@ pull:
 	git pull
 
 .PHONY: bench
-bench: check-server-id pull rm build
+bench: check-server-id pull befor deploy-conf dev
 
 .PHONY: maji
 maji: before build restart
@@ -248,6 +246,13 @@ status:
 
 .PHONY: setup
 setup:
+	sudo add-apt-repository ppa:longsleep/golang-backports
+	sudo apt update
+	sudo apt upgrade -y
+	git config --global user.email "you@example.com"
+	git config --global user.name "isucon-server"
+	mkdir ~/bin -p
+	sudo apt install -y percona-toolkit dstat git unzip snapd graphviz tree golang-go
 	go get github.com/matsuu/kataribe@latest
 	$(GOPATH)/kataribe -generate
 	curl -Lo slackcat https://github.com/bcicen/slackcat/releases/download/1.7.2/slackcat-1.7.2-$$(uname -s)-amd64
@@ -255,4 +260,3 @@ setup:
 	sudo chmod +x /usr/local/bin/slackcat
 	slackcat --configure
 	ssh-keygen -t ed25519
-
