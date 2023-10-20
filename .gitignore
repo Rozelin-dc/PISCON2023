@@ -9,4 +9,7 @@ initial-data
 !webapp/README.md
 !webapp/docs/
 !webapp/docs/**
+!webapp/sql/
+!webapp/sql/**
+webapp/sql/initial.sql
 
