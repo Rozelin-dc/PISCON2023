@@ -219,7 +219,7 @@ slow-pt:
 
 .PHONY: kataru
 kataru:
-	sudo cat $(NGINX_LOG) | $(GOPATH)/kataribe -f ./kataribe.toml | $(SLACKCAT)
+	sudo cat $(NGINX_LOG) | $(GOPATH)/kataribe -f ./kataribe.toml | cat
 
 .PHONY: pprof
 pprof:
