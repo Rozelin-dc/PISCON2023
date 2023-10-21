@@ -167,7 +167,7 @@ type Category struct {
 	ID                 int    `json:"id" db:"id"`
 	ParentID           int    `json:"parent_id" db:"parent_id"`
 	CategoryName       string `json:"category_name" db:"category_name"`
-	ParentCategoryName string `json:"parent_category_name,omitempty" db:"-"`
+	ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
 }
 
 type reqInitialize struct {
@@ -408,14 +408,7 @@ func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err
 }
 
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
-	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
-	if category.ParentID != 0 {
-		parentCategory, err := getCategoryByID(q, category.ParentID)
-		if err != nil {
-			return category, err
-		}
-		category.ParentCategoryName = parentCategory.CategoryName
-	}
+	err = sqlx.Get(q, &category, "SELECT `categories`.`id`, `categories`.`parent_id`, `categories`.`category_name`, `parent`.`category_name` AS `parent_category_name` FROM `categories` JOIN `categories` AS `parent` ON `categories`.`parent_id` = `parent`.`id` WHERE `id` = ?", categoryID)
 	return category, err
 }
 
