@@ -645,7 +645,7 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND category_id IN (?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE `items`.`status` IN (?,?) AND `items`.`category_id` IN (?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			categoryIDs,
@@ -662,7 +662,7 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		inQuery, inArgs, err = sqlx.In(
-			"SELECT * FROM `items` WHERE `status` IN (?,?) AND category_id IN (?) ORDER BY created_at DESC, id DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE `items`.`status` IN (?,?) AND `items`.`category_id` IN (?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			ItemStatusOnSale,
 			ItemStatusSoldOut,
 			categoryIDs,
@@ -675,7 +675,27 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := []Item{}
+	type ItemDB struct {
+		ID          int64     `json:"id" db:"id"`
+		SellerID    int64     `json:"seller_id" db:"seller_id"`
+		BuyerID     int64     `json:"buyer_id" db:"buyer_id"`
+		Status      string    `json:"status" db:"status"`
+		Name        string    `json:"name" db:"name"`
+		Price       int       `json:"price" db:"price"`
+		Description string    `json:"description" db:"description"`
+		ImageName   string    `json:"image_name" db:"image_name"`
+		CategoryID  int       `json:"category_id" db:"category_id"`
+		CreatedAt   time.Time `json:"-" db:"created_at"`
+		UpdatedAt   time.Time `json:"-" db:"updated_at"`
+
+		SellerAccountName string `db:"seller_account_name"`
+		NumSellItems      int    `db:"num_sell_items"`
+
+		ParentCategoryID   int    `json:"parent_id" db:"parent_id"`
+		CategoryName       string `json:"category_name" db:"category_name"`
+		ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
+	}
+	items := []ItemDB{}
 	err = dbx.Select(&items, inQuery, inArgs...)
 
 	if err != nil {
@@ -686,27 +706,26 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(dbx, item.SellerID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "seller not found")
-			return
-		}
-		category, err := getCategoryByID(dbx, item.CategoryID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "category not found")
-			return
-		}
 		itemSimples = append(itemSimples, ItemSimple{
-			ID:         item.ID,
-			SellerID:   item.SellerID,
-			Seller:     &seller,
+			ID:       item.ID,
+			SellerID: item.SellerID,
+			Seller: &UserSimple{
+				ID:           item.SellerID,
+				AccountName:  item.SellerAccountName,
+				NumSellItems: item.NumSellItems,
+			},
 			Status:     item.Status,
 			Name:       item.Name,
 			Price:      item.Price,
 			ImageURL:   getImageURL(item.ImageName),
 			CategoryID: item.CategoryID,
-			Category:   &category,
-			CreatedAt:  item.CreatedAt.Unix(),
+			Category: &Category{
+				ID:                 item.CategoryID,
+				CategoryName:       item.CategoryName,
+				ParentID:           item.ParentCategoryID,
+				ParentCategoryName: item.ParentCategoryName,
+			},
+			CreatedAt: item.CreatedAt.Unix(),
 		})
 	}
 
