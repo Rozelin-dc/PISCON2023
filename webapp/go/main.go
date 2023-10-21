@@ -408,7 +408,7 @@ func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err
 }
 
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
-	err = sqlx.Get(q, &category, "SELECT `target`.`id`, `target`.`parent_id`, `target`.`category_name`, `parent`.`category_name` AS `parent_category_name` FROM `categories` AS `target` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE `target`.`id` = ?", categoryID)
+	err = sqlx.Get(q, &category, "SELECT `target`.`id`, `target`.`parent_id`, `target`.`category_name`, `parent`.`category_name` AS `parent_category_name` FROM `categories` AS `target` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` AND `target`.`id` = ?", categoryID)
 	return category, err
 }
 
