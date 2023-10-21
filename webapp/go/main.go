@@ -1052,8 +1052,28 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item := Item{}
-	err = dbx.Get(&item, "SELECT * FROM `items` WHERE `id` = ?", itemID)
+	type ItemDB struct {
+		ID          int64     `json:"id" db:"id"`
+		SellerID    int64     `json:"seller_id" db:"seller_id"`
+		BuyerID     int64     `json:"buyer_id" db:"buyer_id"`
+		Status      string    `json:"status" db:"status"`
+		Name        string    `json:"name" db:"name"`
+		Price       int       `json:"price" db:"price"`
+		Description string    `json:"description" db:"description"`
+		ImageName   string    `json:"image_name" db:"image_name"`
+		CategoryID  int       `json:"category_id" db:"category_id"`
+		CreatedAt   time.Time `json:"-" db:"created_at"`
+		UpdatedAt   time.Time `json:"-" db:"updated_at"`
+
+		SellerAccountName string `db:"seller_account_name"`
+		NumSellItems      int    `db:"num_sell_items"`
+
+		ParentCategoryID   int    `json:"parent_id" db:"parent_id"`
+		CategoryName       string `json:"category_name" db:"category_name"`
+		ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
+	}
+	item := ItemDB{}
+	err = dbx.Get(&item, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE `id` = ?", itemID)
 	if err == sql.ErrNoRows {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
 		return
@@ -1064,22 +1084,14 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	category, err := getCategoryByID(dbx, item.CategoryID)
-	if err != nil {
-		outputErrorMsg(w, http.StatusNotFound, "category not found")
-		return
-	}
-
-	seller, err := getUserSimpleByID(dbx, item.SellerID)
-	if err != nil {
-		outputErrorMsg(w, http.StatusNotFound, "seller not found")
-		return
-	}
-
 	itemDetail := ItemDetail{
 		ID:       item.ID,
 		SellerID: item.SellerID,
-		Seller:   &seller,
+		Seller: &UserSimple{
+			ID:           item.SellerID,
+			AccountName:  item.SellerAccountName,
+			NumSellItems: item.NumSellItems,
+		},
 		// BuyerID
 		// Buyer
 		Status:      item.Status,
@@ -1091,7 +1103,12 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		// TransactionEvidenceID
 		// TransactionEvidenceStatus
 		// ShippingStatus
-		Category:  &category,
+		Category: &Category{
+			ID:                 item.CategoryID,
+			ParentID:           item.ParentCategoryID,
+			CategoryName:       item.CategoryName,
+			ParentCategoryName: item.ParentCategoryName,
+		},
 		CreatedAt: item.CreatedAt.Unix(),
 	}
 
@@ -1104,8 +1121,24 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		itemDetail.BuyerID = item.BuyerID
 		itemDetail.Buyer = &buyer
 
-		transactionEvidence := TransactionEvidence{}
-		err = dbx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
+		type TransactionEvidenceDB struct {
+			ID                 int64     `json:"id" db:"id"`
+			SellerID           int64     `json:"seller_id" db:"seller_id"`
+			BuyerID            int64     `json:"buyer_id" db:"buyer_id"`
+			Status             string    `json:"status" db:"status"`
+			ItemID             int64     `json:"item_id" db:"item_id"`
+			ItemName           string    `json:"item_name" db:"item_name"`
+			ItemPrice          int       `json:"item_price" db:"item_price"`
+			ItemDescription    string    `json:"item_description" db:"item_description"`
+			ItemCategoryID     int       `json:"item_category_id" db:"item_category_id"`
+			ItemRootCategoryID int       `json:"item_root_category_id" db:"item_root_category_id"`
+			CreatedAt          time.Time `json:"-" db:"created_at"`
+			UpdatedAt          time.Time `json:"-" db:"updated_at"`
+
+			ShippingStatus string `json:"shipping_status" db:"shipping_status"`
+		}
+		transactionEvidence := TransactionEvidenceDB{}
+		err = dbx.Get(&transactionEvidence, "SELECT `transaction_evidences`.`id`, `transaction_evidences`.`seller_id`, `transaction_evidences`.`buyer_id`, `transaction_evidences`.`status`, `transaction_evidences`.`item_id`, `transaction_evidences`.`item_name`, `transaction_evidences`.`item_price`, `transaction_evidences`.`item_description`, `transaction_evidences`.`item_category_id`, `transaction_evidences`.`item_root_category_id`, `transaction_evidences`.`created_at`, `transaction_evidences`.`updated_at`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`status` ELSE \"\" END AS `shipping_status` FROM `transaction_evidences` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE `transaction_evidences`.`item_id` = ?", item.ID)
 		if err != nil && err != sql.ErrNoRows {
 			// It's able to ignore ErrNoRows
 			log.Print(err)
@@ -1114,21 +1147,9 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = dbx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
-				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				return
-			}
-
 			itemDetail.TransactionEvidenceID = transactionEvidence.ID
 			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
-			itemDetail.ShippingStatus = shipping.Status
+			itemDetail.ShippingStatus = transactionEvidence.ShippingStatus
 		}
 	}
 
