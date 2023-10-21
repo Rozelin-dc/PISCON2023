@@ -976,8 +976,24 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			itemDetail.Buyer = &buyer
 		}
 
-		transactionEvidence := TransactionEvidence{}
-		err = tx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
+		type TransactionEvidenceDB struct {
+			ID                 int64     `json:"id" db:"id"`
+			SellerID           int64     `json:"seller_id" db:"seller_id"`
+			BuyerID            int64     `json:"buyer_id" db:"buyer_id"`
+			Status             string    `json:"status" db:"status"`
+			ItemID             int64     `json:"item_id" db:"item_id"`
+			ItemName           string    `json:"item_name" db:"item_name"`
+			ItemPrice          int       `json:"item_price" db:"item_price"`
+			ItemDescription    string    `json:"item_description" db:"item_description"`
+			ItemCategoryID     int       `json:"item_category_id" db:"item_category_id"`
+			ItemRootCategoryID int       `json:"item_root_category_id" db:"item_root_category_id"`
+			CreatedAt          time.Time `json:"-" db:"created_at"`
+			UpdatedAt          time.Time `json:"-" db:"updated_at"`
+
+			ReserveID string `json:"reserve_id" db:"reserve_id"`
+		}
+		transactionEvidence := TransactionEvidenceDB{}
+		err = tx.Get(&transactionEvidence, "SELECT `transaction_evidences`.`id`, `transaction_evidences`.`seller_id`, `transaction_evidences`.`buyer_id`, `transaction_evidences`.`status`, `transaction_evidences`.`item_id`, `transaction_evidences`.`item_name`, `transaction_evidences`.`item_price`, `transaction_evidences`.`item_description`, `transaction_evidences`.`item_category_id`, `transaction_evidences`.`item_root_category_id`, `transaction_evidences`.`created_at`, `transaction_evidences`.`updated_at`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `transaction_evidences` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE `transaction_evidences`.`item_id` = ?", item.ID)
 		if err != nil && err != sql.ErrNoRows {
 			// It's able to ignore ErrNoRows
 			log.Print(err)
@@ -987,21 +1003,8 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = tx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
-				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				tx.Rollback()
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				tx.Rollback()
-				return
-			}
 			ssr, err := APIShipmentStatus(getShipmentServiceURL(), &APIShipmentStatusReq{
-				ReserveID: shipping.ReserveID,
+				ReserveID: transactionEvidence.ReserveID,
 			})
 			if err != nil {
 				log.Print(err)
