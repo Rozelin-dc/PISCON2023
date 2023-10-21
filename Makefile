@@ -36,7 +36,7 @@ GOPATH:=/home/isucon/go/bin
 MYSQL_CMD:=mysql -h$(DB_HOST) -P$(DB_PORT) -u$(DB_USER) -p$(DB_PASS) $(DB_NAME)
 
 NGINX_LOG:=/var/log/nginx/access.log
-MYSQL_LOG:=/var/log/mysql/mariadb-slow.log
+MYSQL_LOG:=/var/log/mysql/mysql-slow.log
 MYSQL_PATH := /var/log/mysql
 KATARU_CFG:=./kataribe.toml
 
@@ -196,10 +196,14 @@ rm:
 .PHONY: before
 before:
 	sudo chmod 777 $(MYSQL_PATH)
+	sudo chmod 777 $(MYSQL_LOG)
 	$(eval when := $(shell date "+%s"))
 	mkdir -p ~/logs/$(when)
 	@if [ -f $(NGINX_LOG) ]; then \
 		sudo mv -f $(NGINX_LOG) ~/logs/$(when)/ ; \
+	fi
+	@if [ -f $(MYSQL_LOG) ]; then \
+		sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/ ; \
 	fi
 	sudo systemctl daemon-reload
 	sudo systemctl restart nginx
