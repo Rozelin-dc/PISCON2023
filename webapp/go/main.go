@@ -884,6 +884,10 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 		SellerAccountName string `db:"seller_account_name"`
 		NumSellItems      int    `db:"num_sell_items"`
+
+		ParentCategoryID   int    `json:"parent_id" db:"parent_id"`
+		CategoryName       string `json:"category_name" db:"category_name"`
+		ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
 	}
 
 	tx := dbx.MustBegin()
@@ -891,7 +895,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` AND (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -913,7 +917,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` AND (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -933,13 +937,6 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
-		category, err := getCategoryByID(tx, item.CategoryID)
-		if err != nil {
-			outputErrorMsg(w, http.StatusNotFound, "category not found")
-			tx.Rollback()
-			return
-		}
-
 		itemDetail := ItemDetail{
 			ID:       item.ID,
 			SellerID: item.SellerID,
@@ -959,7 +956,12 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			// TransactionEvidenceID
 			// TransactionEvidenceStatus
 			// ShippingStatus
-			Category:  &category,
+			Category: &Category{
+				ID:                 item.CategoryID,
+				CategoryName:       item.CategoryName,
+				ParentID:           item.ParentCategoryID,
+				ParentCategoryName: item.ParentCategoryName,
+			},
 			CreatedAt: item.CreatedAt.Unix(),
 		}
 
