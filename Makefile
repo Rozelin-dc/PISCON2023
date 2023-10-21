@@ -196,14 +196,10 @@ rm:
 .PHONY: before
 before:
 	sudo chmod 777 $(MYSQL_PATH)
-	sudo chmod 777 $(MYSQL_LOG)
 	$(eval when := $(shell date "+%s"))
 	mkdir -p ~/logs/$(when)
 	@if [ -f $(NGINX_LOG) ]; then \
 		sudo mv -f $(NGINX_LOG) ~/logs/$(when)/ ; \
-	fi
-	@if [ -f $(MYSQL_LOG) ]; then \
-		sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/ ; \
 	fi
 	sudo systemctl daemon-reload
 	sudo systemctl restart nginx
