@@ -918,6 +918,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		SellerAccountName string `db:"seller_account_name"`
 		NumSellItems      int    `db:"num_sell_items"`
 
+		BuyerAccountName  string `db:"buyer_account_name"`
+		BuyerNumSellItems int    `db:"buyer_num_sell_items"`
+
 		ParentCategoryID   int    `json:"parent_id" db:"parent_id"`
 		CategoryName       string `json:"category_name" db:"category_name"`
 		ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
@@ -928,7 +931,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -950,7 +953,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -999,14 +1002,12 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
-			if err != nil {
-				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
-				tx.Rollback()
-				return
-			}
 			itemDetail.BuyerID = item.BuyerID
-			itemDetail.Buyer = &buyer
+			itemDetail.Buyer = &UserSimple{
+				ID:           item.BuyerID,
+				AccountName:  item.BuyerAccountName,
+				NumSellItems: item.BuyerNumSellItems,
+			}
 		}
 
 		type TransactionEvidenceDB struct {
