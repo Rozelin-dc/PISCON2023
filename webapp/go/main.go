@@ -927,7 +927,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		TransactionID     int64  `json:"id" db:"transaction_id"`
 		TransactionStatus string `json:"status" db:"transaction_status"`
 
-		ReserveID string `json:"reserve_id" db:"reserve_id"`
+		ShippingStatus string `db:"shipping_status"`
 	}
 
 	tx := dbx.MustBegin()
@@ -935,7 +935,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`status` ELSE \"\" END AS `shipping_status` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -957,7 +957,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`status` ELSE \"\" END AS `shipping_status` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -976,7 +976,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 	tx.Commit()
 
-	shipmentUrl := getShipmentServiceURL()
+	// shipmentUrl := getShipmentServiceURL()
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
 		itemDetail := ItemDetail{
@@ -1017,18 +1017,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.TransactionID > 0 {
-			ssr, err := APIShipmentStatus(shipmentUrl, &APIShipmentStatusReq{
-				ReserveID: item.ReserveID,
-			})
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "failed to request to shipment service")
-				return
-			}
-
 			itemDetail.TransactionEvidenceID = item.TransactionID
 			itemDetail.TransactionEvidenceStatus = item.TransactionStatus
-			itemDetail.ShippingStatus = ssr.Status
+			itemDetail.ShippingStatus = item.ShippingStatus
 		}
 
 		itemDetails = append(itemDetails, itemDetail)
