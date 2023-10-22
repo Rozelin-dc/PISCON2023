@@ -873,7 +873,6 @@ func getUserItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTransactions(w http.ResponseWriter, r *http.Request) {
-
 	user, errCode, errMsg := getUser(r)
 	if errMsg != "" {
 		outputErrorMsg(w, errCode, errMsg)
@@ -975,7 +974,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	tx.Commit()
 
+	shipmentUrl := getShipmentServiceURL()
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
 		itemDetail := ItemDetail{
@@ -1016,13 +1017,12 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.TransactionID > 0 {
-			ssr, err := APIShipmentStatus(getShipmentServiceURL(), &APIShipmentStatusReq{
+			ssr, err := APIShipmentStatus(shipmentUrl, &APIShipmentStatusReq{
 				ReserveID: item.ReserveID,
 			})
 			if err != nil {
 				log.Print(err)
 				outputErrorMsg(w, http.StatusInternalServerError, "failed to request to shipment service")
-				tx.Rollback()
 				return
 			}
 
@@ -1033,7 +1033,6 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 		itemDetails = append(itemDetails, itemDetail)
 	}
-	tx.Commit()
 
 	hasNext := false
 	if len(itemDetails) > TransactionsPerPage {
@@ -1048,7 +1047,6 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(w).Encode(rts)
-
 }
 
 func getItem(w http.ResponseWriter, r *http.Request) {
