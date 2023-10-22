@@ -924,6 +924,11 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		ParentCategoryID   int    `json:"parent_id" db:"parent_id"`
 		CategoryName       string `json:"category_name" db:"category_name"`
 		ParentCategoryName string `json:"parent_category_name,omitempty" db:"parent_category_name"`
+
+		TransactionID     int64  `json:"id" db:"transaction_id"`
+		TransactionStatus string `json:"status" db:"transaction_status"`
+
+		ReserveID string `json:"reserve_id" db:"reserve_id"`
 	}
 
 	tx := dbx.MustBegin()
@@ -931,7 +936,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	if itemID > 0 && createdAt > 0 {
 		// paging
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?)) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -953,7 +958,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 1st page
 		err := tx.Select(&items,
-			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
+			"SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `target`.`category_name`, `target`.`parent_id`, CASE `target`.`parent_id` WHEN 0 THEN \"\" ELSE `parent`.`category_name` END AS `parent_category_name`, CASE `items`.`buyer_id` WHEN 0 THEN \"\" ELSE `buyer`.`account_name` END AS `buyer_account_name`, CASE `items`.`buyer_id` WHEN 0 THEN 0 ELSE `buyer`.`num_sell_items` END AS `buyer_num_sell_items`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`id` ELSE 0 END AS `transaction_id`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `transaction_evidences`.`status` ELSE \"\" END AS `transaction_status`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` JOIN `categories` AS `target` ON `items`.`category_id` = `target`.`id` LEFT OUTER JOIN `categories` AS `parent` ON `target`.`parent_id` = `parent`.`id` LEFT OUTER JOIN `users` AS `buyer` ON `items`.`buyer_id` = `buyer`.`id` LEFT OUTER JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?) AND `items`.`status` IN (?,?,?,?,?) ORDER BY `items`.`created_at` DESC, `items`.`id` DESC LIMIT ?",
 			user.ID,
 			user.ID,
 			ItemStatusOnSale,
@@ -1010,35 +1015,9 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		type TransactionEvidenceDB struct {
-			ID                 int64     `json:"id" db:"id"`
-			SellerID           int64     `json:"seller_id" db:"seller_id"`
-			BuyerID            int64     `json:"buyer_id" db:"buyer_id"`
-			Status             string    `json:"status" db:"status"`
-			ItemID             int64     `json:"item_id" db:"item_id"`
-			ItemName           string    `json:"item_name" db:"item_name"`
-			ItemPrice          int       `json:"item_price" db:"item_price"`
-			ItemDescription    string    `json:"item_description" db:"item_description"`
-			ItemCategoryID     int       `json:"item_category_id" db:"item_category_id"`
-			ItemRootCategoryID int       `json:"item_root_category_id" db:"item_root_category_id"`
-			CreatedAt          time.Time `json:"-" db:"created_at"`
-			UpdatedAt          time.Time `json:"-" db:"updated_at"`
-
-			ReserveID string `json:"reserve_id" db:"reserve_id"`
-		}
-		transactionEvidence := TransactionEvidenceDB{}
-		err = tx.Get(&transactionEvidence, "SELECT `transaction_evidences`.`id`, `transaction_evidences`.`seller_id`, `transaction_evidences`.`buyer_id`, `transaction_evidences`.`status`, `transaction_evidences`.`item_id`, `transaction_evidences`.`item_name`, `transaction_evidences`.`item_price`, `transaction_evidences`.`item_description`, `transaction_evidences`.`item_category_id`, `transaction_evidences`.`item_root_category_id`, `transaction_evidences`.`created_at`, `transaction_evidences`.`updated_at`, CASE WHEN `transaction_evidences`.`id` > 0 THEN `shippings`.`reserve_id` ELSE \"\" END AS `reserve_id` FROM `transaction_evidences` LEFT OUTER JOIN `shippings` ON `shippings`.`transaction_evidence_id` = `transaction_evidences`.`id` WHERE `transaction_evidences`.`item_id` = ?", item.ID)
-		if err != nil && err != sql.ErrNoRows {
-			// It's able to ignore ErrNoRows
-			log.Print(err)
-			outputErrorMsg(w, http.StatusInternalServerError, "db error")
-			tx.Rollback()
-			return
-		}
-
-		if transactionEvidence.ID > 0 {
+		if item.TransactionID > 0 {
 			ssr, err := APIShipmentStatus(getShipmentServiceURL(), &APIShipmentStatusReq{
-				ReserveID: transactionEvidence.ReserveID,
+				ReserveID: item.ReserveID,
 			})
 			if err != nil {
 				log.Print(err)
@@ -1047,8 +1026,8 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			itemDetail.TransactionEvidenceID = transactionEvidence.ID
-			itemDetail.TransactionEvidenceStatus = transactionEvidence.Status
+			itemDetail.TransactionEvidenceID = item.TransactionID
+			itemDetail.TransactionEvidenceStatus = item.TransactionStatus
 			itemDetail.ShippingStatus = ssr.Status
 		}
 
