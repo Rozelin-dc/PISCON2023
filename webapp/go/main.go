@@ -1321,8 +1321,25 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 
 	tx := dbx.MustBegin()
 
-	targetItem := Item{}
-	err = tx.Get(&targetItem, "SELECT * FROM `items` WHERE `id` = ? FOR UPDATE", rb.ItemID)
+	type ItemDB struct {
+		ID          int64     `db:"id"`
+		SellerID    int64     `db:"seller_id"`
+		BuyerID     int64     `db:"buyer_id"`
+		Status      string    `db:"status"`
+		Name        string    `db:"name"`
+		Price       int       `db:"price"`
+		Description string    `db:"description"`
+		ImageName   string    `db:"image_name"`
+		CategoryID  int       `db:"category_id"`
+		CreatedAt   time.Time `db:"created_at"`
+		UpdatedAt   time.Time `db:"updated_at"`
+
+		SellerAccountName string `db:"seller_account_name"`
+		NumSellItems      int    `db:"num_sell_items"`
+		SellerAddress     string `db:"address"`
+	}
+	i := ItemDB{}
+	err = tx.Get(&i, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `users`.`address`FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` WHERE `id` = ? FOR UPDATE", rb.ItemID)
 	if err == sql.ErrNoRows {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
 		tx.Rollback()
@@ -1336,6 +1353,19 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	targetItem := Item{
+		ID:          i.ID,
+		SellerID:    i.SellerID,
+		BuyerID:     i.BuyerID,
+		Status:      i.Status,
+		Name:        i.Name,
+		Price:       i.Price,
+		Description: i.Description,
+		ImageName:   i.ImageName,
+		CategoryID:  i.CategoryID,
+		CreatedAt:   i.CreatedAt,
+		UpdatedAt:   i.UpdatedAt,
+	}
 	if targetItem.Status != ItemStatusOnSale {
 		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
 		tx.Rollback()
@@ -1348,19 +1378,11 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seller := User{}
-	err = tx.Get(&seller, "SELECT * FROM `users` WHERE `id` = ? FOR UPDATE", targetItem.SellerID)
-	if err == sql.ErrNoRows {
-		outputErrorMsg(w, http.StatusNotFound, "seller not found")
-		tx.Rollback()
-		return
-	}
-	if err != nil {
-		log.Print(err)
-
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		tx.Rollback()
-		return
+	seller := User{
+		ID:           i.SellerID,
+		AccountName:  i.SellerAccountName,
+		NumSellItems: i.NumSellItems,
+		Address:      i.SellerAddress,
 	}
 
 	category, ok := getCategoryByID(targetItem.CategoryID)
