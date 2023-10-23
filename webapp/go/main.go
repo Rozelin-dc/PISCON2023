@@ -1387,10 +1387,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 
 	category, ok := getCategoryByID(targetItem.CategoryID)
 	if !ok {
-		log.Print(err)
-
 		outputErrorMsg(w, http.StatusInternalServerError, "category id error")
-		tx.Rollback()
 		return
 	}
 
