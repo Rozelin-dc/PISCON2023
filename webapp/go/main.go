@@ -1339,7 +1339,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		SellerAddress     string `db:"address"`
 	}
 	i := ItemDB{}
-	err = tx.Get(&i, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `users`.`address`FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` WHERE `id` = ? FOR UPDATE", rb.ItemID)
+	err = tx.Get(&i, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `users`.`address` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` WHERE `items`.`id` = ? FOR UPDATE", rb.ItemID)
 	if err == sql.ErrNoRows {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
 		tx.Rollback()
