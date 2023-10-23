@@ -1319,8 +1319,6 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := dbx.MustBegin()
-
 	type ItemDB struct {
 		ID          int64     `db:"id"`
 		SellerID    int64     `db:"seller_id"`
@@ -1339,17 +1337,14 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		SellerAddress     string `db:"address"`
 	}
 	i := ItemDB{}
-	err = tx.Get(&i, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `users`.`address` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` WHERE `items`.`id` = ? FOR UPDATE", rb.ItemID)
+	err = dbx.Get(&i, "SELECT `items`.`id`, `items`.`seller_id`, `items`.`buyer_id`, `items`.`status`, `items`.`name`, `items`.`price`, `items`.`description`, `items`.`image_name`, `items`.`category_id`, `items`.`created_at`, `items`.`updated_at`, `users`.`account_name` AS `seller_account_name`, `users`.`num_sell_items`, `users`.`address` FROM `items` JOIN `users` ON `items`.`seller_id` = `users`.`id` WHERE `items`.`id` = ?", rb.ItemID)
 	if err == sql.ErrNoRows {
 		outputErrorMsg(w, http.StatusNotFound, "item not found")
-		tx.Rollback()
 		return
 	}
 	if err != nil {
 		log.Print(err)
-
 		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		tx.Rollback()
 		return
 	}
 
@@ -1368,13 +1363,11 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 	}
 	if targetItem.Status != ItemStatusOnSale {
 		outputErrorMsg(w, http.StatusForbidden, "item is not for sale")
-		tx.Rollback()
 		return
 	}
 
 	if targetItem.SellerID == buyer.ID {
 		outputErrorMsg(w, http.StatusForbidden, "自分の商品は買えません")
-		tx.Rollback()
 		return
 	}
 
@@ -1391,6 +1384,7 @@ func postBuy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tx := dbx.MustBegin()
 	result, err := tx.Exec("INSERT INTO `transaction_evidences` (`seller_id`, `buyer_id`, `status`, `item_id`, `item_name`, `item_price`, `item_description`,`item_category_id`,`item_root_category_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		targetItem.SellerID,
 		buyer.ID,
