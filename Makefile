@@ -238,6 +238,10 @@ slow-off:
 status:
 	sudo systemctl status $(SERVICE_NAME)
 
+.PHONY: db
+db:
+	$(MYSQL_CMD)
+
 .PHONY: setup
 setup:
 	sudo add-apt-repository ppa:longsleep/golang-backports
