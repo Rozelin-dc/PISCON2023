@@ -242,13 +242,18 @@ status:
 db:
 	$(MYSQL_CMD)
 
+.PHONY: git-setup
+git-setup:
+	git init
+	git config --global user.email "you@example.com"
+	git config --global user.name "isucon-server"
+	ssh-keygen -t ed25519
+
 .PHONY: setup
 setup:
 	sudo add-apt-repository ppa:longsleep/golang-backports
 	sudo apt update
 	sudo apt upgrade -y
-	git config --global user.email "you@example.com"
-	git config --global user.name "isucon-server"
 	mkdir ~/bin -p
 	sudo apt install -y percona-toolkit dstat git unzip snapd graphviz tree golang-go
 	go get github.com/matsuu/kataribe@latest
@@ -257,4 +262,3 @@ setup:
 	sudo mv slackcat /usr/local/bin/
 	sudo chmod +x /usr/local/bin/slackcat
 	slackcat --configure
-	ssh-keygen -t ed25519
